@@ -26,6 +26,8 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
+import android.content.ContentResolver;
+import android.graphics.Bitmap;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
 import android.graphics.Point;
@@ -43,9 +45,11 @@ import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.support.v13.app.FragmentCompat;
 import android.support.v4.content.ContextCompat;
@@ -59,6 +63,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Toast;
 
+import android.content.Context;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -70,6 +76,43 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import android.content.ContextWrapper;
+import android.graphics.BitmapRegionDecoder;
+
+import android.app.Application;
+import android.content.ContentResolver;
+import android.content.Context;
+
+import android.Manifest;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.graphics.Bitmap;
+import android.net.Uri;
+import android.os.AsyncTask;
+import android.os.Bundle;
+import android.os.Environment;
+import android.provider.MediaStore;
+import android.support.design.widget.FloatingActionButton;
+import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.Toolbar;
+import android.util.Log;
+import android.view.View;
+import android.widget.ImageView;
+import android.widget.TextView;
+import android.widget.Toast;
+import android.content.ContentResolver;
+
+import com.google.api.client.extensions.android.http.AndroidHttp;
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.http.HttpTransport;
+import com.google.api.client.json.JsonFactory;
+import com.google.api.client.json.gson.GsonFactory;
+
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Camera2BasicFragment extends Fragment
         implements View.OnClickListener, FragmentCompat.OnRequestPermissionsResultCallback {
@@ -176,6 +219,7 @@ public class Camera2BasicFragment extends Fragment
      */
     private CameraDevice mCameraDevice;
 
+    private CloudAccess cloudAccess;
     /**
      * The {@link android.util.Size} of camera preview.
      */
@@ -429,11 +473,17 @@ public class Camera2BasicFragment extends Fragment
         view.findViewById(R.id.picture).setOnClickListener(this);
         view.findViewById(R.id.info).setOnClickListener(this);
         mTextureView = (AutoFitTextureView) view.findViewById(R.id.texture);
+
+        //todo probably a bad spot for this...
+        cloudAccess = new CloudAccess(view, getActivity());
     }
 
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
+
+
+
         mFile = new File(getActivity().getExternalFilesDir(null), "pic.jpg");
     }
 
@@ -837,6 +887,32 @@ public class Camera2BasicFragment extends Fragment
                                                @NonNull TotalCaptureResult result) {
                     showToast("Saved: " + mFile);
                     Log.d(TAG, mFile.toString());
+
+                    Uri uri = Uri.fromFile(mFile);
+                    Bitmap bitmap;
+
+                    if (uri != null) {
+                        try {
+                            // scale the image to save on bandwidth
+                            bitmap =
+                                    cloudAccess.scaleBitmapDown(
+                                            MediaStore.Images.Media.getBitmap(getActivity().getContentResolver(), uri),
+                                            400);
+
+                            cloudAccess.callCloudVision(bitmap);
+                            //mMainImage.setImageBitmap(bitmap);
+
+                        } catch (IOException e) {
+                            Log.d(TAG, "Image picking failed because " + e.getMessage());
+                            //Toast.makeText(this, R.string.image_picker_error, Toast.LENGTH_LONG).show();
+                        }
+                    } else {
+                        Log.d(TAG, "Image picker gave us a null image.");
+                        //Toast.makeText(this, R.string.image_picker_error, Toast.LENGTH_LONG).show();
+                    }
+
+
+                    //startCloudProcessing();
                     unlockFocus();
                 }
             };
