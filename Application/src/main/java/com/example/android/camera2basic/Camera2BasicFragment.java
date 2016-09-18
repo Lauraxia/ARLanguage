@@ -121,6 +121,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.google.api.services.translate.Translate;
+import com.google.api.services.translate.model.TranslationsListResponse;
+import com.google.api.services.translate.model.TranslationsResource;
+
 public class Camera2BasicFragment extends Fragment
         implements View.OnClickListener, FragmentCompat.OnRequestPermissionsResultCallback {
 
@@ -1245,17 +1249,55 @@ public class Camera2BasicFragment extends Fragment
     }
 
     private String convertResponseToString(BatchAnnotateImagesResponse response) {
-        String message = "I found these things:\n\n";
+        TranslationsListResponse resp = null;
+        try {
+            // See comments on
+            //   https://developers.google.com/resources/api-libraries/documentation/translate/v2/java/latest/
+            // on options to set
+            //com.google.api.client.googleapis.javanet.GoogleNetHttpTransport.newTrustedTransport(),
+            Translate t = new Translate.Builder(
+                    com.google.api.client.extensions.android.http.AndroidHttp.newCompatibleTransport(),
+                    com.google.api.client.json.gson.GsonFactory.getDefaultInstance(), null)
+                    //Need to update this to your App-Name
+                    .setApplicationName("com.example.android.camera2basic")
+                    .build();
+            Translate.Translations.List list = t.new Translations().list(
+                    Arrays.asList(
+                            //Pass in list of strings to be translated
+                            "Hello World",
+                            "How to use Google Translate from Java"),
+                    //Target language
+                    "FR");
+            //Set your API-Key from https://console.developers.google.com/
+            list.setKey(CLOUD_VISION_API_KEY);
+            resp = list.execute();
+            for (TranslationsResource tr : resp.getTranslations()) {
+                System.out.println(tr.getTranslatedText());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+
+        String message = "";
 
         List<EntityAnnotation> labels = response.getResponses().get(0).getLabelAnnotations();
+        try {
+            for (TranslationsResource tr : resp.getTranslations()) {
+                message += tr.getTranslatedText();
+            }
+        } catch(Exception e) {}
         if (labels != null) {
             for (EntityAnnotation label : labels) {
                 message += String.format("%.3f: %s", label.getScore(), label.getDescription());
+
+                //label.getDescription()
                 message += "\n";
             }
         } else {
             message += "nothing";
         }
+
 
         return message;
     }
