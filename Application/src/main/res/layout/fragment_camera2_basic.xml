@@ -38,7 +38,7 @@
             android:text="Medium Textjjjjj"
             android:id="@+id/textView"
             android:foregroundTint="#ec1515"
-            android:textColor="#f41111" />
+            android:textColor="#f41112" />
     </RelativeLayout>
 
     <FrameLayout
