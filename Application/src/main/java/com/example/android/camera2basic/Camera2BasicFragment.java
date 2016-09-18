@@ -61,6 +61,7 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.RelativeLayout;
 import android.widget.Toast;
 
 import android.content.Context;
@@ -482,12 +483,14 @@ public class Camera2BasicFragment extends Fragment
         return inflater.inflate(R.layout.fragment_camera2_basic, container, false);
     }
 
+    RelativeLayout wordsLayout;
     @Override
     public void onViewCreated(final View view, Bundle savedInstanceState) {
         view.findViewById(R.id.picture).setOnClickListener(this);
         view.findViewById(R.id.info).setOnClickListener(this);
         mTextureView = (AutoFitTextureView) view.findViewById(R.id.texture);
         mImageDetails = (TextView) view.findViewById(R.id.mImageDetails);
+        wordsLayout = (RelativeLayout) view.findViewById(R.id.wordsLayout);
 
         pictureTakingHandler.postDelayed(doPictureTaking, 2000);
 
@@ -1289,10 +1292,34 @@ public class Camera2BasicFragment extends Fragment
         } catch(Exception e) {}
         if (labels != null) {
             for (EntityAnnotation label : labels) {
-                message += String.format("%.3f: %s", label.getScore(), label.getDescription());
 
-                //label.getDescription()
+                        String tmp = String.format("%.3f: %s", label.getScore(), label.getDescription());
+                message += tmp;
+
+                        //label.getDescription()
                 message += "\n";
+                final String finalmsg = tmp;
+                activity.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+
+                        TextView t = new TextView(getActivity());
+                        t.setText(finalmsg);
+                        t.setPadding(200, 200, 200, 200);
+                        wordsLayout.addView(t);
+
+                    }
+                });
+//                private void setDetailsText(final String result) {
+//                    activity.runOnUiThread(new Runnable() {
+//                        @Override
+//                        public void run() {
+//
+//                            mImageDetails.setText(result);
+//
+//                        }
+//                    });
+//                }
             }
         } else {
             message += "nothing";
@@ -1301,8 +1328,8 @@ public class Camera2BasicFragment extends Fragment
 
         return message;
     }
-
-
+//    String tmp;
+//    TextView t;
 
     private Runnable doPictureTaking = new Runnable() {
         @Override
