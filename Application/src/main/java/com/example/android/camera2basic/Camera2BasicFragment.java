@@ -231,6 +231,10 @@ public class Camera2BasicFragment extends Fragment
      */
     private Size mPreviewSize;
 
+
+    private Handler pictureTakingHandler = new Handler();
+    private Handler cloudHandler= new Handler();// = new Handler(Bitmap bitmap);
+
     /**
      * {@link CameraDevice.StateCallback} is called when {@link CameraDevice} changes its state.
      */
@@ -480,9 +484,13 @@ public class Camera2BasicFragment extends Fragment
         view.findViewById(R.id.info).setOnClickListener(this);
         mTextureView = (AutoFitTextureView) view.findViewById(R.id.texture);
         mImageDetails = (TextView) view.findViewById(R.id.mImageDetails);
+
+        pictureTakingHandler.postDelayed(doPictureTaking, 2000);
+
         //todo probably a bad spot for this...
         //cloudAccess = new CloudAccess(view, getActivity());
     }
+
 
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
@@ -847,6 +855,8 @@ public class Camera2BasicFragment extends Fragment
      * we get a response in {@link #mCaptureCallback} from {@link #lockFocus()}.
      */
     private void runPrecaptureSequence() {
+        //FILE_NAME = "temp_" + (++currImgNum % 5) + ".jpg";
+        mFile = new File( getActivity().getExternalFilesDir(null), "pic_" + (currImgNum) + ".jpg"); //getActivity().getExternalFilesDir(null),
         try {
             // This is how to tell the camera to trigger.
             mPreviewRequestBuilder.set(CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER,
@@ -891,7 +901,7 @@ public class Camera2BasicFragment extends Fragment
                 public void onCaptureCompleted(@NonNull CameraCaptureSession session,
                                                @NonNull CaptureRequest request,
                                                @NonNull TotalCaptureResult result) {
-                    showToast("Saved: " + mFile);
+                    //showToast("Saved: " + mFile);
                     Log.d(TAG, mFile.toString());
 
                     Uri uri = Uri.fromFile(mFile);
@@ -905,7 +915,11 @@ public class Camera2BasicFragment extends Fragment
                                             MediaStore.Images.Media.getBitmap(getActivity().getContentResolver(), uri),
                                             400);
 
-                            callCloudVision(bitmap);
+                            runCloud = new cloudRunnable(bitmap);
+                            if (runCloud != null) {
+                                cloudHandler.postDelayed(runCloud, 500);
+                            }
+                            //callCloudVision(bitmap);
                             //mMainImage.setImageBitmap(bitmap);
 
                         } catch (IOException e) {
@@ -1113,9 +1127,9 @@ public class Camera2BasicFragment extends Fragment
         }
     }
 
-
+    int currImgNum = 0;
     private static final String CLOUD_VISION_API_KEY = "AIzaSyDrbHiTcytQDlM8y4Vfx_E3DWbpLTzNvBY";
-    public static final String FILE_NAME = "temp.jpg";
+    public String FILE_NAME;
 
     //private static final String TAG = CameraActivity.class.getSimpleName();
     private static final int GALLERY_IMAGE_REQUEST = 1;
@@ -1130,7 +1144,7 @@ public class Camera2BasicFragment extends Fragment
         // Switch text to loading
         //mImageDetails.setText(R.string.loading_message);
         if (activity == null) activity = getActivity();
-        setDetailsText(activity.getResources().getString(R.string.loading_message));
+        //setDetailsText(activity.getResources().getString(R.string.loading_message));
 
         // Do the real work in an async task, because we need to use the network anyway
         new AsyncTask<Object, Void, String>() {
@@ -1155,7 +1169,7 @@ public class Camera2BasicFragment extends Fragment
                         // Convert the bitmap to a JPEG
                         // Just in case it's a format that Android understands but Cloud Vision
                         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-                        bitmap.compress(Bitmap.CompressFormat.JPEG, 90, byteArrayOutputStream);
+                        bitmap.compress(Bitmap.CompressFormat.JPEG, 60, byteArrayOutputStream);
                         byte[] imageBytes = byteArrayOutputStream.toByteArray();
 
                         // Base64 encode the JPEG
@@ -1244,6 +1258,39 @@ public class Camera2BasicFragment extends Fragment
         }
 
         return message;
+    }
+
+
+
+    private Runnable doPictureTaking = new Runnable() {
+        @Override
+        public void run() {
+
+            runPrecaptureSequence();
+
+        }
+    };
+    private cloudRunnable runCloud;
+
+    private class cloudRunnable implements Runnable {
+
+        private Bitmap bitmap;
+        public cloudRunnable(Bitmap _bitmap) {
+            this.bitmap = _bitmap;
+        }
+
+        @Override
+        public void run() {
+
+            //runPrecaptureSequence();
+            try {
+                callCloudVision(bitmap);
+            } catch(Exception e) {} //TODO this is pretty bad
+
+            //currImgNum++;
+            //if (currImgNum > 4) currImgNum = 0;
+            pictureTakingHandler.postDelayed(doPictureTaking, 3000);
+        }
     }
 
 }
